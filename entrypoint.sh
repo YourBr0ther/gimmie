@@ -1,11 +1,12 @@
 #!/bin/bash
 set -e
 
-echo "Creating directories..."
+echo "🚀 [$(date '+%Y-%m-%d %H:%M:%S')] Starting Gimmie application..."
+echo "📁 [$(date '+%Y-%m-%d %H:%M:%S')] Creating directories..."
 mkdir -p /app/data/backups
 chmod -R 777 /app/data
 
-echo "Initializing database..."
+echo "🗄️  [$(date '+%Y-%m-%d %H:%M:%S')] Initializing database..."
 python3 -c "
 import sys
 sys.path.insert(0, '/app')
@@ -32,14 +33,14 @@ with app.app_context():
             item.added_by = 'Unknown'
         
         db.session.commit()
-        print(f'Updated {len(items_without_added_by)} items and {len(archived_without_added_by)} archived items')
+        print(f'✅ Updated {len(items_without_added_by)} items and {len(archived_without_added_by)} archived items')
     except Exception as e:
         # Column doesn't exist or other error - this is expected for new databases
-        print(f'Migration note: {e}')
-        print('This is normal for new installations or when schema is being updated')
+        print(f'ℹ️  Migration note: {e}')
+        print('ℹ️  This is normal for new installations or when schema is being updated')
     
-    print('Database created successfully')
+    print('✅ Database created successfully')
 "
 
-echo "Starting Gunicorn..."
-exec gunicorn -b 0.0.0.0:5010 --timeout 120 app:app
+echo "🌐 [$(date '+%Y-%m-%d %H:%M:%S')] Starting Gunicorn server on port 5010..."
+exec gunicorn -b 0.0.0.0:5010 --timeout 120 --log-level info --access-logfile - --error-logfile - app:app

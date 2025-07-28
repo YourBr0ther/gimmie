@@ -3,15 +3,33 @@ let isOnline = navigator.onLine;
 let retryAttempts = 0;
 const MAX_RETRY_ATTEMPTS = 3;
 
+// Enhanced logging function
+function log(level, message, data = null) {
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+    
+    if (level === 'error') {
+        console.error(logEntry, data || '');
+    } else if (level === 'warn') {
+        console.warn(logEntry, data || '');
+    } else {
+        console.log(logEntry, data || '');
+    }
+}
+
+log('info', '🚀 Gimmie frontend initialized');
+
 // Connection status monitoring
 window.addEventListener('online', () => {
     isOnline = true;
+    log('info', '🌐 Connection restored');
     showConnectionStatus('Connected', 'success');
     loadItems(); // Refresh data when back online
 });
 
 window.addEventListener('offline', () => {
     isOnline = false;
+    log('warn', '📡 Connection lost');
     showConnectionStatus('Offline', 'warning');
 });
 
@@ -75,15 +93,17 @@ async function apiCall(url, options = {}) {
 }
 
 async function loadItems() {
+    log('info', '📋 Loading items from server');
     const itemsList = document.getElementById('items-list');
     itemsList.innerHTML = '<div class="loading">Loading...</div>';
     
     try {
         const response = await apiCall('/api/items');
         items = await response.json();
+        log('info', `✅ Loaded ${items.length} items from server`);
         renderItems();
     } catch (error) {
-        console.error('Error loading items:', error);
+        log('error', '❌ Failed to load items', error);
         itemsList.innerHTML = `
             <div class="error-message">
                 <img src="/static/images/gimmie-sad-icon.png" alt="Connection Error" class="error-icon">
