@@ -66,6 +66,46 @@ Available tags:
 - `latest` - Latest stable version
 - `v1.0` - Version 1.0 release
 
+### Docker Swarm Deployment
+
+For production environments with high availability:
+
+#### Basic Swarm Deployment
+```bash
+# Initialize swarm (if not already done)
+docker swarm init
+
+# Deploy using the automated script
+./deploy-swarm.sh
+```
+
+#### Production Swarm with Secrets
+```bash
+# Setup secrets first
+./setup-swarm-secrets.sh
+
+# Deploy production stack
+docker stack deploy -c docker-compose.swarm.prod.yml gimmie
+```
+
+#### Swarm Management Commands
+```bash
+# View stack status
+docker stack ps gimmie
+
+# View services
+docker stack services gimmie
+
+# View logs
+docker service logs gimmie_gimmie
+
+# Scale the service
+docker service scale gimmie_gimmie=3
+
+# Remove the stack
+docker stack rm gimmie
+```
+
 ## PWA Installation
 
 On mobile devices:

@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  gimmie:
+    image: yourbr0ther/gimmie:latest
+    ports:
+      - "5010:5010"
+    volumes:
+      - gimmie_data:/app/data
+    secrets:
+      - gimmie_secret_key
+      - gimmie_login_password
+    environment:
+      - SECRET_KEY_FILE=/run/secrets/gimmie_secret_key
+      - LOGIN_PASSWORD_FILE=/run/secrets/gimmie_login_password
+      - DATABASE_URL=sqlite:////app/data/gimmie.db
+    networks:
+      - gimmie_network
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 30s
+        failure_action: rollback
+        monitor: 60s
+        max_failure_ratio: 0.3
+      rollback_config:
+        parallelism: 1
+        delay: 30s
+        failure_action: pause
+        monitor: 60s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+      placement:
+        constraints:
+          - node.role == manager
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5010/api/items?health=1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx reverse proxy for load balancing
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_certs:/etc/nginx/certs:ro
+    networks:
+      - gimmie_network
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+    depends_on:
+      - gimmie
+
+networks:
+  gimmie_network:
+    driver: overlay
+    attachable: true
+
+volumes:
+  gimmie_data:
+    driver: local
+  nginx_certs:
+    driver: local
+
+secrets:
+  gimmie_secret_key:
+    external: true
+  gimmie_login_password:
+    external: true
