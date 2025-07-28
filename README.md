@@ -37,11 +37,34 @@ A family-focused PWA (Progressive Web App) for tracking wanted and needed items 
 
 ### Docker Deployment
 
+#### Option 1: Use Pre-built Image from Docker Hub
+```bash
+# Create .env file
+cp .env.example .env
+
+# Pull and run the latest image
+docker run -d \
+  --name gimmie \
+  -p 5010:5010 \
+  -v ./data:/app/data \
+  --env-file .env \
+  --restart unless-stopped \
+  yourbrother/gimmie:latest
+```
+
+#### Option 2: Build from Source
 1. Copy `.env.example` to `.env` and configure
 2. Build and run:
    ```bash
    docker compose up -d
    ```
+
+#### Docker Hub
+The official image is available at: **[yourbrother/gimmie](https://hub.docker.com/r/yourbrother/gimmie)**
+
+Available tags:
+- `latest` - Latest stable version
+- `v1.0` - Version 1.0 release
 
 ## PWA Installation
 
