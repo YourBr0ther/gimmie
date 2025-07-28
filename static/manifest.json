@@ -1,0 +1,22 @@
+{
+  "name": "Gimmie - Track Your Wants & Needs",
+  "short_name": "Gimmie",
+  "description": "Track what you need, get what you want",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/images/gimmie-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "lifestyle"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "prefer_related_applications": false
+}

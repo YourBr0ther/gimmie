@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Gimmie{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-box">
+        <img src="/static/images/gimmie-icon.png" alt="Gimmie" class="logo">
+        <h1>Gimmie</h1>
+        <p class="tagline">Track what you need, get what you want</p>
+        
+        <form method="POST" action="/login" class="login-form">
+            {% if error %}
+            <div class="error-message">{{ error }}</div>
+            {% endif %}
+            
+            <div class="form-group">
+                <input type="password" name="password" placeholder="Enter password" required autofocus>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

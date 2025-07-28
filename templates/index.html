@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}My List - Gimmie{% endblock %}
+
+{% block content %}
+<div class="app-container">
+    <header class="app-header">
+        <h1>Gimmie</h1>
+    </header>
+    
+    <main class="app-main">
+        <div class="add-item-container">
+            <button id="add-item-btn" class="btn btn-primary btn-large">
+                <span class="plus-icon">+</span> Add Item
+            </button>
+        </div>
+        
+        <div id="items-list" class="items-list">
+            <div class="loading">Loading...</div>
+        </div>
+    </main>
+    
+    <footer class="app-footer">
+        <button id="import-btn" class="btn btn-small">Import</button>
+        <button id="export-json-btn" class="btn btn-small">Export</button>
+        <button id="archive-btn" class="btn btn-small">Archive</button>
+    </footer>
+</div>
+
+<div id="add-item-modal" class="modal">
+    <div class="modal-content">
+        <h2>Add New Item</h2>
+        <form id="add-item-form">
+            <div class="form-group">
+                <label for="item-name">Item Name</label>
+                <input type="text" id="item-name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="item-cost">Cost ($)</label>
+                <input type="number" id="item-cost" name="cost" step="0.01" min="0">
+            </div>
+            
+            <div class="form-group">
+                <label for="item-link">Purchase Link</label>
+                <input type="url" id="item-link" name="link" placeholder="https://...">
+            </div>
+            
+            <div class="form-group">
+                <label for="item-type">Type</label>
+                <select id="item-type" name="type">
+                    <option value="want">Want</option>
+                    <option value="need">Need</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="item-added-by">Added By</label>
+                <input type="text" id="item-added-by" name="added_by" placeholder="Who added this item?" required>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Item</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="archive-modal" class="modal">
+    <div class="modal-content">
+        <h2>Archived Items</h2>
+        <div id="archive-list" class="archive-list">
+            <div class="loading">Loading...</div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-primary" onclick="closeArchiveModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="import-file" accept=".json" style="display: none;">
+
+<script src="/static/js/app.js"></script>
+{% endblock %}

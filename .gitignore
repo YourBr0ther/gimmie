@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.env
+data/gimmie.db
+data/backups/*
+!data/backups/.gitkeep
+.DS_Store
+*.log
+.pytest_cache/
+htmlcov/
+.coverage
+*.egg-info/
+dist/
+build/
+# Temporary files
+*.txt
+cookies*.txt
+browser_cookies.txt

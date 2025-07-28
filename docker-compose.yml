@@ -1,0 +1,11 @@
+services:
+  gimmie:
+    build: .
+    ports:
+      - "5010:5010"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - LOGIN_PASSWORD=${LOGIN_PASSWORD}
+    restart: unless-stopped
