@@ -1,6 +1,8 @@
+version: '3.8'
+
 services:
   gimmie:
-    build: .
+    image: yourbr0ther/gimmie:latest
     ports:
       - "5010:5010"
     volumes:

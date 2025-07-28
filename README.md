@@ -63,7 +63,8 @@ docker run -d \
 The official image is available at: **[yourbr0ther/gimmie](https://hub.docker.com/r/yourbr0ther/gimmie)**
 
 Available tags:
-- `latest` - Latest stable version with enhanced logging
+- `latest` - Latest stable version with enhanced logging and improved Docker stability
+- `v1.3-stable` - Version 1.3 with Docker stability fixes (increased timeout, multiple workers)
 - `v1.2-logging` - Version 1.2 with detailed console logging  
 - `v1.0` - Version 1.0 release
 
@@ -98,11 +99,26 @@ docker logs -f --tail 100 gimmie
 - **Import/export activity logging**
 - **Error tracking** with detailed context
 
+## Production Deployment
+
+### Docker Stability
+The latest version includes Docker stability improvements:
+- **Increased Gunicorn timeout** (300 seconds) to prevent worker crashes
+- **Multiple workers** (2) for better concurrency handling
+- **Platform-specific builds** for linux/amd64 compatibility
+- **Enhanced error handling** with automatic retries
+
+### Reverse Proxy Support
+Configured for nginx proxy manager and other reverse proxies:
+- ProxyFix middleware handles forwarded headers correctly
+- Client IP logging works behind proxies
+- HTTPS redirect support built-in
+
 ## Security
 
-- Set a strong `LOGIN_PASSWORD` in your `.env` file (authentication removed in current version)
+- Set a strong `SECRET_KEY` in your `.env` file for session encryption
 - Use HTTPS in production (configure reverse proxy)
-- Change the `SECRET_KEY` for session encryption
+- Authentication has been removed for simplified deployment
 
 ## API Endpoints
 
