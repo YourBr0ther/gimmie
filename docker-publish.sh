@@ -14,15 +14,17 @@ echo -e "${YELLOW}🐳 Gimmie Docker Hub Publishing Script${NC}"
 echo "============================================"
 
 # Check if logged into Docker Hub
-if ! docker info | grep -q "Username:"; then
+if ! cat ~/.docker/config.json 2>/dev/null | grep -q "index.docker.io"; then
     echo -e "${RED}❌ Not logged into Docker Hub${NC}"
     echo "Please run: docker login"
     exit 1
 fi
 
+echo -e "${GREEN}✅ Docker Hub credentials found${NC}"
+
 # Get version from user input or use default
 VERSION=${1:-"latest"}
-DOCKER_REPO="yourbrother/gimmie"
+DOCKER_REPO="yourbr0ther/gimmie"
 
 echo -e "${YELLOW}📦 Building image: ${DOCKER_REPO}:${VERSION}${NC}"
 

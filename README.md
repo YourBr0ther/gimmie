@@ -49,7 +49,7 @@ docker run -d \
   -v ./data:/app/data \
   --env-file .env \
   --restart unless-stopped \
-  yourbrother/gimmie:latest
+  yourbr0ther/gimmie:latest
 ```
 
 #### Option 2: Build from Source
@@ -60,7 +60,7 @@ docker run -d \
    ```
 
 #### Docker Hub
-The official image is available at: **[yourbrother/gimmie](https://hub.docker.com/r/yourbrother/gimmie)**
+The official image is available at: **[yourbr0ther/gimmie](https://hub.docker.com/r/yourbr0ther/gimmie)**
 
 Available tags:
 - `latest` - Latest stable version
