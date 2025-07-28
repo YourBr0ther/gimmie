@@ -63,7 +63,8 @@ docker run -d \
 The official image is available at: **[yourbr0ther/gimmie](https://hub.docker.com/r/yourbr0ther/gimmie)**
 
 Available tags:
-- `latest` - Latest stable version
+- `latest` - Latest stable version with enhanced logging
+- `v1.2-logging` - Version 1.2 with detailed console logging  
 - `v1.0` - Version 1.0 release
 
 ## PWA Installation
@@ -72,24 +73,49 @@ On mobile devices:
 - iOS: Open in Safari, tap Share, then "Add to Home Screen"
 - Android: Chrome will prompt to install, or use menu > "Add to Home Screen"
 
+## Logging & Monitoring
+
+The application provides comprehensive logging for debugging and monitoring:
+
+### View Logs
+```bash
+# Docker Compose
+docker compose logs -f
+
+# Docker Run
+docker logs -f gimmie
+
+# Live log streaming
+docker logs -f --tail 100 gimmie
+```
+
+### Log Features
+- **Structured logging** with timestamps and emojis
+- **Client IP tracking** for all requests
+- **API endpoint monitoring** (GET, POST, PUT, DELETE)
+- **Database operation tracking** with retry attempts
+- **Connection status monitoring** (online/offline)
+- **Import/export activity logging**
+- **Error tracking** with detailed context
+
 ## Security
 
-- Set a strong `LOGIN_PASSWORD` in your `.env` file
+- Set a strong `LOGIN_PASSWORD` in your `.env` file (authentication removed in current version)
 - Use HTTPS in production (configure reverse proxy)
 - Change the `SECRET_KEY` for session encryption
 
 ## API Endpoints
 
-- `POST /login` - Login with password
 - `GET /api/items` - Get all items
-- `POST /api/items` - Create new item
+- `POST /api/items` - Create new item  
 - `PUT /api/items/{id}` - Update item
-- `DELETE /api/items/{id}` - Delete item
-- `POST /api/items/{id}/complete` - Mark as completed
-- `POST /api/items/{id}/move` - Move item up/down
+- `DELETE /api/items/{id}` - Delete item (moves to archive)
+- `POST /api/items/{id}/complete` - Mark as completed (moves to archive)
+- `POST /api/items/{id}/move` - Move item up/down in list
 - `GET /api/export` - Export data as JSON
-- `POST /api/import` - Import data
+- `POST /api/import` - Import data from JSON
 - `GET /api/archive` - View archived items
+- `POST /api/archive/{id}/restore` - Restore item from archive
 
 ## Technologies
 
