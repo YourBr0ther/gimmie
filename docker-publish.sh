@@ -28,8 +28,8 @@ DOCKER_REPO="yourbr0ther/gimmie"
 
 echo -e "${YELLOW}📦 Building image: ${DOCKER_REPO}:${VERSION}${NC}"
 
-# Build the image
-docker build -t ${DOCKER_REPO}:${VERSION} -t ${DOCKER_REPO}:latest .
+# Build the image specifically for linux/amd64
+docker build --platform linux/amd64 -t ${DOCKER_REPO}:${VERSION} -t ${DOCKER_REPO}:latest .
 
 echo -e "${GREEN}✅ Build completed successfully${NC}"
 

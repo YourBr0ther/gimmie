@@ -18,7 +18,8 @@ htmlcov/
 *.egg-info/
 dist/
 build/
-# Temporary files
-*.txt
+# Temporary files  
 cookies*.txt
 browser_cookies.txt
+# Keep requirements.txt
+!requirements.txt

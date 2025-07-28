@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  gimmie:
+    image: yourbr0ther/gimmie:latest
+    # Force pull for current platform
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "5010:5010"
+    volumes:
+      - gimmie_data:/app/data
+    environment:
+      - SECRET_KEY=uo7weoiuhasdofi
+      - LOGIN_PASSWORD=choochoo
+      - DATABASE_URL=sqlite:////app/data/gimmie.db
+    networks:
+      - media-net
+
+networks:
+  media-net:
+    external: true
+
+volumes:
+  gimmie_data:
+    driver: local

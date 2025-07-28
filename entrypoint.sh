@@ -43,4 +43,4 @@ with app.app_context():
 "
 
 echo "🌐 [$(date '+%Y-%m-%d %H:%M:%S')] Starting Gunicorn server on port 5010..."
-exec gunicorn -b 0.0.0.0:5010 --timeout 120 --log-level info --access-logfile - --error-logfile - app:app
+exec gunicorn -b 0.0.0.0:5010 --timeout 300 --workers 2 --log-level info --access-logfile - --error-logfile - app:app
