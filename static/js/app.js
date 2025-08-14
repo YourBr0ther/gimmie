@@ -3,6 +3,7 @@ let isOnline = navigator.onLine;
 let retryAttempts = 0;
 const MAX_RETRY_ATTEMPTS = 3;
 let isLoadingItems = false;
+let isSubmittingForm = false;
 
 // Enhanced logging function
 function log(level, message, data = null) {
@@ -274,6 +275,13 @@ document.getElementById('add-item-btn').addEventListener('click', () => {
 document.getElementById('add-item-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    // Prevent double submissions
+    if (isSubmittingForm) {
+        log('info', '🔄 Form submission already in progress, skipping...');
+        return;
+    }
+    
+    isSubmittingForm = true;
     const formData = new FormData(e.target);
     const data = {
         name: formData.get('name'),
@@ -304,8 +312,10 @@ document.getElementById('add-item-form').addEventListener('submit', async (e) =>
         closeModal();
         await loadItems();
     } catch (error) {
-        console.error('Error saving item:', error);
+        log('error', '❌ Failed to save item', error);
         showConnectionStatus(error.message || 'Failed to save item', 'error');
+    } finally {
+        isSubmittingForm = false;
     }
 });
 
