@@ -4,6 +4,7 @@ let retryAttempts = 0;
 const MAX_RETRY_ATTEMPTS = 3;
 let isLoadingItems = false;
 let isSubmittingForm = false;
+let formListenerAdded = false;
 
 // Enhanced logging function
 function log(level, message, data = null) {
@@ -275,7 +276,11 @@ document.getElementById('add-item-btn').addEventListener('click', () => {
     document.getElementById('item-name').focus();
 });
 
-document.getElementById('add-item-form').addEventListener('submit', async (e) => {
+// Prevent duplicate event listeners
+if (!formListenerAdded) {
+    formListenerAdded = true;
+    log('info', '🎯 Adding form submit listener');
+    document.getElementById('add-item-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     log('info', '📝 Form submit event triggered');
@@ -327,7 +332,10 @@ document.getElementById('add-item-form').addEventListener('submit', async (e) =>
         isSubmittingForm = false;
         log('info', '🔓 Form submission unlocked');
     }
-});
+    });
+} else {
+    log('warn', '⚠️  Form listener already added, skipping');
+}
 
 document.getElementById('export-json-btn').addEventListener('click', () => {
     window.location.href = '/api/export?format=json';
