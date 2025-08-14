@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gimmie-v1.0.1';
+const CACHE_NAME = 'gimmie-v1.0.4-final';
 const urlsToCache = [
   '/',
   '/static/css/style.css',

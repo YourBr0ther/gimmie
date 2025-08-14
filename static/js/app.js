@@ -276,10 +276,11 @@ document.getElementById('add-item-btn').addEventListener('click', () => {
     document.getElementById('item-name').focus();
 });
 
-// Prevent duplicate event listeners
+// Prevent duplicate event listeners - FORCE CACHE BUST v1.0.4
+console.log('🚀 App.js loaded - Version 1.0.4');
 if (!formListenerAdded) {
     formListenerAdded = true;
-    log('info', '🎯 Adding form submit listener');
+    log('info', '🎯 Adding form submit listener v1.0.4');
     document.getElementById('add-item-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
