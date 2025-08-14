@@ -2,6 +2,7 @@ let items = [];
 let isOnline = navigator.onLine;
 let retryAttempts = 0;
 const MAX_RETRY_ATTEMPTS = 3;
+let isLoadingItems = false;
 
 // Enhanced logging function
 function log(level, message, data = null) {
@@ -93,6 +94,13 @@ async function apiCall(url, options = {}) {
 }
 
 async function loadItems() {
+    // Prevent concurrent loads
+    if (isLoadingItems) {
+        log('info', '🔄 Load already in progress, skipping...');
+        return;
+    }
+    
+    isLoadingItems = true;
     log('info', '📋 Loading items from server');
     const itemsList = document.getElementById('items-list');
     itemsList.innerHTML = '<div class="loading">Loading...</div>';
@@ -112,6 +120,8 @@ async function loadItems() {
                 <button onclick="loadItems()" class="btn btn-small">Retry</button>
             </div>
         `;
+    } finally {
+        isLoadingItems = false;
     }
 }
 
@@ -169,9 +179,10 @@ async function completeItem(id) {
     if (confirm('Mark this item as completed?')) {
         try {
             await apiCall(`/api/items/${id}/complete`, { method: 'POST' });
+            log('info', `✅ Item ${id} marked as completed`);
             await loadItems();
         } catch (error) {
-            console.error('Error completing item:', error);
+            log('error', '❌ Failed to complete item', error);
             showConnectionStatus(error.message || 'Failed to complete item', 'error');
         }
     }
@@ -204,9 +215,10 @@ async function deleteItem(id) {
     if (confirm('Delete this item?')) {
         try {
             await apiCall(`/api/items/${id}`, { method: 'DELETE' });
+            log('info', `✅ Item ${id} deleted successfully`);
             await loadItems();
         } catch (error) {
-            console.error('Error deleting item:', error);
+            log('error', '❌ Failed to delete item', error);
             showConnectionStatus(error.message || 'Failed to delete item', 'error');
         }
     }
@@ -282,10 +294,12 @@ document.getElementById('add-item-form').addEventListener('submit', async (e) =>
             });
         } else {
             // Create new item
-            await apiCall('/api/items', {
+            const response = await apiCall('/api/items', {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
+            const newItem = await response.json();
+            log('info', `✅ Created item: ${newItem.name}`);
         }
         closeModal();
         await loadItems();
