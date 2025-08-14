@@ -32,6 +32,7 @@ db.init_app(app)
 
 # Log startup information
 app.logger.info("🚀 Gimmie app starting up...")
+app.logger.info("🏷️  Version: 1.0.5-cachebust (duplicate fix + cache busting)")
 app.logger.info(f"📊 Environment: {os.environ.get('FLASK_ENV', 'production')}")
 app.logger.info(f"🗄️  Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 app.logger.info(f"🔧 Debug mode: {app.debug}")
