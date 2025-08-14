@@ -97,11 +97,12 @@ async function apiCall(url, options = {}) {
 async function loadItems() {
     // Prevent concurrent loads
     if (isLoadingItems) {
-        log('info', '🔄 Load already in progress, skipping...');
+        log('warn', '🔄 Load already in progress, skipping...');
         return;
     }
     
     isLoadingItems = true;
+    log('info', '🔒 Loading items - locked');
     log('info', '📋 Loading items from server');
     const itemsList = document.getElementById('items-list');
     itemsList.innerHTML = '<div class="loading">Loading...</div>';
@@ -111,6 +112,7 @@ async function loadItems() {
         items = await response.json();
         log('info', `✅ Loaded ${items.length} items from server`);
         renderItems();
+        log('info', '🎨 Items rendered to DOM');
     } catch (error) {
         log('error', '❌ Failed to load items', error);
         itemsList.innerHTML = `
@@ -123,6 +125,7 @@ async function loadItems() {
         `;
     } finally {
         isLoadingItems = false;
+        log('info', '🔓 Loading items - unlocked');
     }
 }
 
@@ -275,13 +278,16 @@ document.getElementById('add-item-btn').addEventListener('click', () => {
 document.getElementById('add-item-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    log('info', '📝 Form submit event triggered');
+    
     // Prevent double submissions
     if (isSubmittingForm) {
-        log('info', '🔄 Form submission already in progress, skipping...');
+        log('warn', '🔄 Form submission already in progress, skipping...');
         return;
     }
     
     isSubmittingForm = true;
+    log('info', '🔒 Form submission locked');
     const formData = new FormData(e.target);
     const data = {
         name: formData.get('name'),
@@ -302,20 +308,24 @@ document.getElementById('add-item-form').addEventListener('submit', async (e) =>
             });
         } else {
             // Create new item
+            log('info', '🚀 Calling API to create item');
             const response = await apiCall('/api/items', {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
             const newItem = await response.json();
-            log('info', `✅ Created item: ${newItem.name}`);
+            log('info', `✅ Created item: ${newItem.name} (ID: ${newItem.id})`);
         }
         closeModal();
+        log('info', '🔄 Calling loadItems to refresh list');
         await loadItems();
+        log('info', '✅ Form submission completed successfully');
     } catch (error) {
         log('error', '❌ Failed to save item', error);
         showConnectionStatus(error.message || 'Failed to save item', 'error');
     } finally {
         isSubmittingForm = false;
+        log('info', '🔓 Form submission unlocked');
     }
 });
 
