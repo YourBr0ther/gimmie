@@ -2,6 +2,7 @@ import os
 import json
 import time
 import logging
+import hashlib
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response
@@ -41,12 +42,21 @@ app.after_request(inject_csrf_token)
 
 # Log startup information
 app.logger.info("🚀 Gimmie app starting up...")
-app.logger.info("🏷️  Version: 1.1.0 (security & performance: validation, rate limiting, CSRF, pooling, indexes)")
+app.logger.info("🏷️  Version: 1.1.1 (cache busting + security & performance)")
 app.logger.info(f"📊 Environment: {os.environ.get('FLASK_ENV', 'production')}")
 app.logger.info(f"🗄️  Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 app.logger.info(f"🔧 Debug mode: {app.debug}")
 
 scheduler = None
+
+# Generate version hash for cache busting
+VERSION = "1.1.1"
+VERSION_HASH = hashlib.md5(f"{VERSION}-{int(time.time())}".encode()).hexdigest()[:8]
+
+# Template context processor to inject version into templates
+@app.context_processor
+def inject_version():
+    return dict(version=VERSION, version_hash=VERSION_HASH)
 
 # Database should be initialized by entrypoint script
 
@@ -318,7 +328,29 @@ def import_data():
             
             # Get current item count before deletion
             current_count = Item.query.count()
+            
+            # Safety check - require confirmation for destructive import
+            if current_count > 0 and not request.form.get('confirm_replace'):
+                return jsonify({
+                    'error': f'Import would replace {current_count} existing items. Add confirm_replace=true to proceed.',
+                    'existing_count': current_count
+                }), 400
+            
             app.logger.info(f"🗑️  Clearing {current_count} existing items for import")
+            
+            # Archive existing items before deletion
+            existing_items = Item.query.all()
+            for item in existing_items:
+                archive_item = Archive(
+                    original_id=item.id,
+                    name=item.name,
+                    cost=item.cost,
+                    link=item.link,
+                    type=item.type,
+                    added_by=item.added_by,
+                    archived_reason='replaced_by_import'
+                )
+                db.session.add(archive_item)
             
             Item.query.delete()
             
@@ -392,11 +424,19 @@ def restore_item(archive_id):
 
 @app.route('/manifest.json')
 def manifest():
-    return app.send_static_file('manifest.json')
+    response = make_response(app.send_static_file('manifest.json'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/service-worker.js')
 def service_worker():
-    return app.send_static_file('service-worker.js')
+    response = make_response(app.send_static_file('service-worker.js'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/health', methods=['GET'])
 @limiter.limit(RATE_LIMITS['health_check'])
@@ -411,7 +451,8 @@ def health_check():
     
     return jsonify({
         'status': 'healthy' if db_status == 'healthy' else 'degraded',
-        'version': '1.1.0',
+        'version': VERSION,
+        'version_hash': VERSION_HASH,
         'database': db_status,
         'timestamp': datetime.utcnow().isoformat() + 'Z'
     })

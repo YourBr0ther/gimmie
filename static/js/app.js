@@ -21,7 +21,41 @@ function log(level, message, data = null) {
     }
 }
 
-log('info', '🚀 Gimmie frontend initialized');
+log('info', '🚀 Gimmie frontend initialized - v1.1.1');
+
+// Check for version updates and clear cache if needed
+async function checkForUpdates() {
+    try {
+        const response = await fetch('/health');
+        const data = await response.json();
+        const serverVersion = data.version_hash;
+        const clientVersion = localStorage.getItem('gimmie_version');
+        
+        if (clientVersion && clientVersion !== serverVersion) {
+            log('info', '🔄 New version detected, clearing cache');
+            // Clear browser cache
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
+            // Clear localStorage except for important data
+            const importantKeys = ['gimmie_version'];
+            const allKeys = Object.keys(localStorage);
+            allKeys.forEach(key => {
+                if (!importantKeys.includes(key)) {
+                    localStorage.removeItem(key);
+                }
+            });
+            localStorage.setItem('gimmie_version', serverVersion);
+            // Force reload to get latest version
+            window.location.reload(true);
+        } else {
+            localStorage.setItem('gimmie_version', serverVersion);
+        }
+    } catch (error) {
+        log('warn', '⚠️  Failed to check for updates', error);
+    }
+}
 
 // Connection status monitoring
 window.addEventListener('online', () => {
@@ -487,6 +521,7 @@ async function initializeCSRF() {
 
 // Start the app
 async function startApp() {
+    await checkForUpdates();
     await initializeCSRF();
     loadItems();
     startHealthCheck();

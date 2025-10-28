@@ -1,10 +1,9 @@
-const CACHE_NAME = 'gimmie-v1.0.7-nuclear';
+const CACHE_NAME = 'gimmie-v1.1.1-cache-busting';
 const urlsToCache = [
   '/',
-  '/static/css/style.css',
   '/static/images/gimmie-icon.png',
   '/manifest.json'
-  // Removed /static/js/app.js to prevent caching issues
+  // CSS and JS files are handled with version-based cache busting
 ];
 
 self.addEventListener('install', event => {
@@ -21,8 +20,10 @@ self.addEventListener('fetch', event => {
   if (event.request.url.includes('/api/') || 
       event.request.url.includes('/login') || 
       event.request.url.includes('/logout') ||
-      event.request.url.includes('/static/js/')) {
-    // Always fetch fresh for API calls, auth, and JavaScript files
+      event.request.url.includes('/static/js/') ||
+      event.request.url.includes('/static/css/') ||
+      event.request.url.includes('?v=')) {
+    // Always fetch fresh for API calls, auth, versioned assets
     return fetch(event.request);
   }
 
