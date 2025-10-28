@@ -42,7 +42,7 @@ app.after_request(inject_csrf_token)
 
 # Log startup information
 app.logger.info("🚀 Gimmie app starting up...")
-app.logger.info("🏷️  Version: 1.1.2 (mobile double-tap fix + cache busting + security & performance)")
+app.logger.info("🏷️  Version: 1.1.3 (mobile CSRF fix + double-tap fix + cache busting + security & performance)")
 app.logger.info(f"📊 Environment: {os.environ.get('FLASK_ENV', 'production')}")
 app.logger.info(f"🗄️  Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 app.logger.info(f"🔧 Debug mode: {app.debug}")
@@ -50,7 +50,7 @@ app.logger.info(f"🔧 Debug mode: {app.debug}")
 scheduler = None
 
 # Generate version hash for cache busting
-VERSION = "1.1.2"
+VERSION = "1.1.3"
 VERSION_HASH = hashlib.md5(f"{VERSION}-{int(time.time())}".encode()).hexdigest()[:8]
 
 # Template context processor to inject version into templates
@@ -454,6 +454,21 @@ def health_check():
         'version': VERSION,
         'version_hash': VERSION_HASH,
         'database': db_status,
+        'timestamp': datetime.utcnow().isoformat() + 'Z'
+    })
+
+@app.route('/csrf-token', methods=['GET'])
+@limiter.limit(RATE_LIMITS['health_check'])
+def get_csrf_token():
+    """Endpoint specifically for getting CSRF tokens"""
+    client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
+    app.logger.info(f"🔒 CSRF token requested from {client_ip}")
+    
+    # Generate CSRF token for the session
+    token = generate_csrf_token()
+    
+    return jsonify({
+        'csrf_token': token,
         'timestamp': datetime.utcnow().isoformat() + 'Z'
     })
 

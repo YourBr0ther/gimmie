@@ -16,6 +16,8 @@ def validate_csrf(f):
     """Decorator to validate CSRF token on state-changing operations"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        from flask import current_app
+        
         # Skip CSRF for GET and OPTIONS requests
         if request.method in ['GET', 'OPTIONS']:
             return f(*args, **kwargs)
@@ -23,14 +25,30 @@ def validate_csrf(f):
         # Get token from header
         token = request.headers.get('X-CSRF-Token')
         
+        # Debug logging for mobile issues
+        current_app.logger.info(f"🔒 CSRF Check - Token received: {bool(token)}, Session token exists: {bool(session.get('csrf_token'))}")
+        if token and session.get('csrf_token'):
+            current_app.logger.info(f"🔒 CSRF tokens match: {token[:8]}... == {session.get('csrf_token', '')[:8]}...")
+        
         # In development, allow missing CSRF for easier testing
         # In production, this should be removed
         if not token and request.headers.get('User-Agent', '').startswith('curl'):
+            current_app.logger.info("🔒 CSRF bypass for curl")
             return f(*args, **kwargs)
         
+        # If no session token exists, try to generate one
+        if not session.get('csrf_token'):
+            current_app.logger.warning("🔒 No CSRF token in session, generating new one")
+            generate_csrf_token()
+        
         # Validate token
-        if not token or token != session.get('csrf_token'):
-            return jsonify({'error': 'Invalid or missing CSRF token'}), 403
+        if not token:
+            current_app.logger.warning("🔒 CSRF token missing from request")
+            return jsonify({'error': 'CSRF token missing. Please refresh the page and try again.'}), 403
+        
+        if token != session.get('csrf_token'):
+            current_app.logger.warning("🔒 CSRF token mismatch")
+            return jsonify({'error': 'CSRF token invalid. Please refresh the page and try again.'}), 403
         
         return f(*args, **kwargs)
     return decorated_function

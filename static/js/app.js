@@ -99,20 +99,45 @@ async function apiCall(url, options = {}) {
                 : { 'Content-Type': 'application/json', ...options.headers };
             
             // Add CSRF token for state-changing operations
-            if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method) && csrfToken) {
-                headers['X-CSRF-Token'] = csrfToken;
+            if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
+                if (!csrfToken) {
+                    log('warn', '⚠️  No CSRF token available, attempting to get one');
+                    await initializeCSRF();
+                }
+                if (csrfToken) {
+                    headers['X-CSRF-Token'] = csrfToken;
+                    log('debug', `🔒 Using CSRF token: ${csrfToken.substring(0, 8)}...`);
+                } else {
+                    log('error', '❌ Still no CSRF token after initialization attempt');
+                }
             }
                 
             const response = await fetch(url, {
                 ...options,
-                headers
+                headers,
+                credentials: 'same-origin' // Ensure cookies are sent
             });
             
             // Extract CSRF token from response if present
             const responseToken = response.headers.get('X-CSRF-Token');
-            if (responseToken) {
+            if (responseToken && responseToken !== csrfToken) {
                 csrfToken = responseToken;
-                log('debug', '🔒 Updated CSRF token');
+                log('debug', `🔒 Updated CSRF token: ${csrfToken.substring(0, 8)}...`);
+            }
+            
+            // Handle CSRF token errors specifically
+            if (response.status === 403) {
+                const errorData = await response.json().catch(() => ({}));
+                if (errorData.error && errorData.error.includes('CSRF')) {
+                    log('warn', '🔒 CSRF token error, attempting to refresh');
+                    csrfToken = null; // Clear the invalid token
+                    await initializeCSRF(); // Get a fresh token
+                    
+                    if (csrfToken && attempt < maxRetries) {
+                        log('info', '🔒 Retrying request with fresh CSRF token');
+                        continue; // Retry the request with the new token
+                    }
+                }
             }
             
             if (!response.ok) {
@@ -546,18 +571,64 @@ function stopHealthCheck() {
     }
 }
 
-// Initialize CSRF token
+// Initialize CSRF token with retry logic for mobile
 async function initializeCSRF() {
-    try {
-        // Make a GET request to get the CSRF token
-        const response = await fetch('/api/items?health=1');
-        const responseToken = response.headers.get('X-CSRF-Token');
-        if (responseToken) {
-            csrfToken = responseToken;
-            log('info', '🔒 CSRF token initialized');
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts && !csrfToken) {
+        attempts++;
+        try {
+            log('info', `🔒 Attempting to get CSRF token (attempt ${attempts}/${maxAttempts})`);
+            
+            // First try health endpoint
+            let response = await fetch('/api/items?health=1');
+            let responseToken = response.headers.get('X-CSRF-Token');
+            
+            if (!responseToken) {
+                // Fallback: try the main page to establish session
+                log('info', '🔒 No token from health endpoint, trying main page');
+                response = await fetch('/', { 
+                    method: 'GET',
+                    credentials: 'same-origin' // Ensure cookies are sent
+                });
+                responseToken = response.headers.get('X-CSRF-Token');
+            }
+            
+            if (!responseToken) {
+                // Try dedicated CSRF token endpoint
+                log('info', '🔒 No token from main page, trying CSRF endpoint');
+                response = await fetch('/csrf-token', { credentials: 'same-origin' });
+                if (response.ok) {
+                    const data = await response.json();
+                    responseToken = data.csrf_token;
+                }
+                if (!responseToken) {
+                    responseToken = response.headers.get('X-CSRF-Token');
+                }
+            }
+            
+            if (responseToken) {
+                csrfToken = responseToken;
+                log('info', `🔒 CSRF token initialized: ${csrfToken.substring(0, 8)}...`);
+                return;
+            } else {
+                log('warn', `⚠️  No CSRF token received on attempt ${attempts}`);
+                if (attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // Exponential backoff
+                }
+            }
+        } catch (error) {
+            log('warn', `⚠️  Failed to get CSRF token on attempt ${attempts}:`, error);
+            if (attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // Exponential backoff
+            }
         }
-    } catch (error) {
-        log('warn', '⚠️  Failed to initialize CSRF token', error);
+    }
+    
+    if (!csrfToken) {
+        log('error', '❌ Failed to initialize CSRF token after all attempts');
+        showConnectionStatus('Failed to initialize security token. Please refresh the page.', 'error');
     }
 }
 
