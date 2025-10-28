@@ -13,6 +13,7 @@ from config import Config
 from backup import init_scheduler
 from validators import validate_item_data, ValidationError
 from rate_limiter import create_limiter, RATE_LIMITS
+from csrf_protection import generate_csrf_token, validate_csrf, inject_csrf_token
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -34,6 +35,9 @@ db.init_app(app)
 
 # Initialize rate limiter
 limiter = create_limiter(app)
+
+# Register CSRF token injection
+app.after_request(inject_csrf_token)
 
 # Log startup information
 app.logger.info("🚀 Gimmie app starting up...")
@@ -86,6 +90,7 @@ def ensure_db_connection():
 @app.route('/api/items', methods=['GET', 'POST'])
 @limiter.limit(RATE_LIMITS['get_items'], methods=['GET'])
 @limiter.limit(RATE_LIMITS['create_item'], methods=['POST'])
+@validate_csrf
 @db_retry()
 def handle_items():
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -133,6 +138,7 @@ def handle_items():
 @app.route('/api/items/<int:item_id>', methods=['PUT', 'DELETE'])
 @limiter.limit(RATE_LIMITS['update_item'], methods=['PUT'])
 @limiter.limit(RATE_LIMITS['delete_item'], methods=['DELETE'])
+@validate_csrf
 @db_retry()
 def handle_item(item_id):
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -202,6 +208,7 @@ def handle_item(item_id):
 
 @app.route('/api/items/<int:item_id>/complete', methods=['POST'])
 @limiter.limit(RATE_LIMITS['complete_item'])
+@validate_csrf
 @db_retry()
 def complete_item(item_id):
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -238,6 +245,7 @@ def complete_item(item_id):
 
 @app.route('/api/items/<int:item_id>/move', methods=['POST'])
 @limiter.limit(RATE_LIMITS['move_item'])
+@validate_csrf
 @db_retry()
 def move_item(item_id):
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -289,6 +297,7 @@ def export_data():
 
 @app.route('/api/import', methods=['POST'])
 @limiter.limit(RATE_LIMITS['import_data'])
+@validate_csrf
 @db_retry()
 def import_data():
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -350,6 +359,7 @@ def get_archive():
 
 @app.route('/api/archive/<int:archive_id>/restore', methods=['POST'])
 @limiter.limit(RATE_LIMITS['restore_item'])
+@validate_csrf
 @db_retry()
 def restore_item(archive_id):
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -421,6 +431,10 @@ def index():
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
     user_agent = request.headers.get('User-Agent', 'Unknown')[:100]  # Truncate long user agents
     app.logger.info(f"🏠 GET / - New session from {client_ip} using {user_agent}")
+    
+    # Generate CSRF token for the session
+    generate_csrf_token()
+    
     return render_template('index.html')
 
 if __name__ == '__main__':

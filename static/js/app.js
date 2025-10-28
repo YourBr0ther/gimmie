@@ -5,6 +5,7 @@ const MAX_RETRY_ATTEMPTS = 3;
 let isLoadingItems = false;
 let isSubmittingForm = false;
 let formListenerAdded = false;
+let csrfToken = null;
 
 // Enhanced logging function
 function log(level, message, data = null) {
@@ -60,11 +61,23 @@ async function apiCall(url, options = {}) {
             const headers = options.body instanceof FormData 
                 ? { ...options.headers }
                 : { 'Content-Type': 'application/json', ...options.headers };
+            
+            // Add CSRF token for state-changing operations
+            if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method) && csrfToken) {
+                headers['X-CSRF-Token'] = csrfToken;
+            }
                 
             const response = await fetch(url, {
                 ...options,
                 headers
             });
+            
+            // Extract CSRF token from response if present
+            const responseToken = response.headers.get('X-CSRF-Token');
+            if (responseToken) {
+                csrfToken = responseToken;
+                log('debug', '🔒 Updated CSRF token');
+            }
             
             if (!response.ok) {
                 if (response.status >= 500 && attempt < maxRetries) {
@@ -457,9 +470,29 @@ function stopHealthCheck() {
     }
 }
 
+// Initialize CSRF token
+async function initializeCSRF() {
+    try {
+        // Make a GET request to get the CSRF token
+        const response = await fetch('/api/items?health=1');
+        const responseToken = response.headers.get('X-CSRF-Token');
+        if (responseToken) {
+            csrfToken = responseToken;
+            log('info', '🔒 CSRF token initialized');
+        }
+    } catch (error) {
+        log('warn', '⚠️  Failed to initialize CSRF token', error);
+    }
+}
+
 // Start the app
-loadItems();
-startHealthCheck();
+async function startApp() {
+    await initializeCSRF();
+    loadItems();
+    startHealthCheck();
+}
+
+startApp();
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
