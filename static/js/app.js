@@ -8,6 +8,7 @@ let formListenerAdded = false;
 let csrfToken = null;
 let lastSubmissionTime = 0;
 let formSubmissionCount = 0;
+let currentSubmissionId = null;
 
 // Enhanced logging function
 function log(level, message, data = null) {
@@ -371,29 +372,52 @@ addItemBtn.addEventListener('touchend', (e) => {
     handleAddItemClick(e);
 });
 
-// Prevent duplicate event listeners - FORCE CACHE BUST v1.0.5
-console.log('🚀 App.js loaded - Version 1.0.5');
+// Prevent duplicate event listeners - MOBILE DOUBLE SUBMISSION FIX v1.1.3
+console.log('🚀 App.js loaded - Version 1.1.3');
+
+// Remove any existing listeners first (mobile cleanup)
+const existingForm = document.getElementById('add-item-form');
+if (existingForm) {
+    const newForm = existingForm.cloneNode(true);
+    existingForm.parentNode.replaceChild(newForm, existingForm);
+    log('info', '🧹 Cleaned existing form listeners');
+}
+
 if (!formListenerAdded) {
     formListenerAdded = true;
-    log('info', '🎯 Adding form submit listener v1.0.5');
+    log('info', '🎯 Adding form submit listener v1.1.3');
     document.getElementById('add-item-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     e.stopImmediatePropagation(); // Stop other handlers
     
     const now = Date.now();
+    const submissionId = `${now}-${Math.random().toString(36).substr(2, 9)}`;
     formSubmissionCount++;
     
-    log('info', `📝 Form submit event triggered (count: ${formSubmissionCount})`);
+    log('info', `📝 Form submit event triggered (count: ${formSubmissionCount}, ID: ${submissionId})`);
     
-    // Enhanced mobile protection against double submissions
+    // ULTRA-AGGRESSIVE mobile protection against double submissions
     if (isSubmittingForm) {
-        log('warn', '🔄 Form submission already in progress, skipping...');
+        log('warn', `🔄 Form submission already in progress (current: ${currentSubmissionId}), skipping...`);
+        e.stopPropagation();
         return false;
     }
     
-    // Time-based protection (prevent submissions within 1 second)
-    if (now - lastSubmissionTime < 1000) {
-        log('warn', '🚫 Form submission too quick, likely duplicate - skipping');
+    // Time-based protection (prevent submissions within 2 seconds for mobile)
+    if (now - lastSubmissionTime < 2000) {
+        log('warn', `🚫 Form submission too quick (${now - lastSubmissionTime}ms), likely duplicate - skipping`);
+        e.stopPropagation();
+        return false;
+    }
+    
+    // Set submission ID for tracking
+    currentSubmissionId = submissionId;
+    
+    // Check if form data is valid before proceeding
+    const nameInput = document.getElementById('item-name');
+    if (!nameInput || !nameInput.value.trim()) {
+        log('warn', '🚫 Form submission with empty name field');
+        showConnectionStatus('Please enter an item name', 'error');
         return false;
     }
     
@@ -411,14 +435,34 @@ if (!formListenerAdded) {
     
     isSubmittingForm = true;
     log('info', '🔒 Form submission locked');
-    const formData = new FormData(e.target);
+    // Get form data with better mobile compatibility
+    const form = e.target;
+    const formData = new FormData(form);
+    
+    // Debug form data on mobile
+    log('info', '📋 Form data captured:');
+    for (let [key, value] of formData.entries()) {
+        log('info', `  ${key}: "${value}"`);
+    }
+    
+    // Get data with fallback to direct element access (mobile backup)
     const data = {
-        name: formData.get('name'),
+        name: formData.get('name') || document.getElementById('item-name').value,
         cost: formData.get('cost') ? parseFloat(formData.get('cost')) : null,
-        link: formData.get('link') || null,
-        type: formData.get('type'),
-        added_by: formData.get('added_by')
+        link: formData.get('link') || document.getElementById('item-link').value || null,
+        type: formData.get('type') || document.getElementById('item-type').value,
+        added_by: formData.get('added_by') || document.getElementById('item-added-by').value
     };
+    
+    // Debug final data object
+    log('info', '📦 Final data object:', data);
+    
+    // Validate required fields again
+    if (!data.name || data.name.trim() === '') {
+        log('error', '❌ Name field is empty after form data extraction');
+        showConnectionStatus('Please enter an item name', 'error');
+        return false;
+    }
     
     const editId = e.target.dataset.editId;
     
@@ -456,6 +500,7 @@ if (!formListenerAdded) {
         formInputs.forEach(input => input.disabled = false);
         
         isSubmittingForm = false;
+        currentSubmissionId = null;
         log('info', '🔓 Form submission unlocked');
     }
     });
