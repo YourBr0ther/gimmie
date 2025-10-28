@@ -2,7 +2,7 @@
 set -e
 
 echo "🚀 [$(date '+%Y-%m-%d %H:%M:%S')] Starting Gimmie application..."
-echo "🏷️  [$(date '+%Y-%m-%d %H:%M:%S')] Version: 1.0.6 (bug fixes: race condition, FormData headers, position ordering)"
+echo "🏷️  [$(date '+%Y-%m-%d %H:%M:%S')] Version: 1.1.0 (security & performance: validation, rate limiting, CSRF, pooling, indexes)"
 echo "📁 [$(date '+%Y-%m-%d %H:%M:%S')] Creating directories..."
 mkdir -p /app/data/backups
 chmod -R 777 /app/data

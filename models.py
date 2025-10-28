@@ -7,13 +7,13 @@ class Item(db.Model):
     __tablename__ = 'items'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(255), nullable=False, index=True)  # Index for searching
     cost = db.Column(db.Numeric(10, 2))
     link = db.Column(db.Text)
-    type = db.Column(db.String(10), nullable=False, default='want', info={'check_constraint': "type IN ('want', 'need')"})
-    added_by = db.Column(db.String(100), nullable=False)
-    position = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    type = db.Column(db.String(10), nullable=False, default='want', index=True, info={'check_constraint': "type IN ('want', 'need')"})
+    added_by = db.Column(db.String(100), nullable=False, index=True)
+    position = db.Column(db.Integer, nullable=False, unique=True, index=True)  # Index for ordering
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def to_dict(self):
@@ -33,14 +33,14 @@ class Archive(db.Model):
     __tablename__ = 'archive'
     
     id = db.Column(db.Integer, primary_key=True)
-    original_id = db.Column(db.Integer)
-    name = db.Column(db.String(255), nullable=False)
+    original_id = db.Column(db.Integer, index=True)  # Index for lookups
+    name = db.Column(db.String(255), nullable=False, index=True)  # Index for searching
     cost = db.Column(db.Numeric(10, 2))
     link = db.Column(db.Text)
-    type = db.Column(db.String(10))
-    added_by = db.Column(db.String(100))
-    archived_reason = db.Column(db.String(20), nullable=False, info={'check_constraint': "archived_reason IN ('deleted', 'completed')"})
-    archived_at = db.Column(db.DateTime, default=datetime.utcnow)
+    type = db.Column(db.String(10), index=True)
+    added_by = db.Column(db.String(100), index=True)
+    archived_reason = db.Column(db.String(20), nullable=False, index=True, info={'check_constraint': "archived_reason IN ('deleted', 'completed')"})
+    archived_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Index for date queries
     
     def to_dict(self):
         return {

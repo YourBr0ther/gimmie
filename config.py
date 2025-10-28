@@ -10,6 +10,16 @@ class Config:
     LOGIN_PASSWORD = os.environ.get('LOGIN_PASSWORD') or 'changeme'
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:////app/data/gimmie.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 10,
+        'pool_recycle': 60,
+        'pool_pre_ping': True,
+        'max_overflow': 20,
+        'connect_args': {
+            'check_same_thread': False,  # For SQLite
+            'timeout': 30
+        }
+    }
     SESSION_COOKIE_NAME = 'gimmie_session'
     SESSION_COOKIE_HTTPONLY = True
     # Auto-detect HTTPS from request headers when behind proxy

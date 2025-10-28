@@ -41,7 +41,7 @@ app.after_request(inject_csrf_token)
 
 # Log startup information
 app.logger.info("🚀 Gimmie app starting up...")
-app.logger.info("🏷️  Version: 1.0.6 (bug fixes: race condition, FormData headers, position ordering)")
+app.logger.info("🏷️  Version: 1.1.0 (security & performance: validation, rate limiting, CSRF, pooling, indexes)")
 app.logger.info(f"📊 Environment: {os.environ.get('FLASK_ENV', 'production')}")
 app.logger.info(f"🗄️  Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 app.logger.info(f"🔧 Debug mode: {app.debug}")
@@ -411,7 +411,7 @@ def health_check():
     
     return jsonify({
         'status': 'healthy' if db_status == 'healthy' else 'degraded',
-        'version': '1.0.6',
+        'version': '1.1.0',
         'database': db_status,
         'timestamp': datetime.utcnow().isoformat() + 'Z'
     })
@@ -425,6 +425,42 @@ def ratelimit_handler(e):
         'error': 'Rate limit exceeded. Please slow down your requests.',
         'retry_after': e.description
     }), 429
+
+@app.errorhandler(400)
+def bad_request(e):
+    """Handle bad request errors"""
+    return jsonify({'error': 'Bad request'}), 400
+
+@app.errorhandler(404)
+def not_found(e):
+    """Handle not found errors"""
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Resource not found'}), 404
+    return render_template('index.html')  # SPA routing
+
+@app.errorhandler(500)
+def internal_error(e):
+    """Handle internal server errors"""
+    client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
+    app.logger.error(f"❌ Internal server error for {client_ip}: {str(e)}")
+    db.session.rollback()
+    return jsonify({'error': 'Internal server error'}), 500
+
+@app.errorhandler(DatabaseError)
+def database_error(e):
+    """Handle database errors"""
+    client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
+    app.logger.error(f"❌ Database error for {client_ip}: {str(e)}")
+    db.session.rollback()
+    return jsonify({'error': 'Database temporarily unavailable. Please try again.'}), 503
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle unexpected exceptions"""
+    client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
+    app.logger.error(f"❌ Unexpected error for {client_ip}: {str(e)}", exc_info=True)
+    db.session.rollback()
+    return jsonify({'error': 'An unexpected error occurred'}), 500
 
 @app.route('/')
 def index():
