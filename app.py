@@ -12,6 +12,7 @@ from auth import login_required, create_session, check_password
 from config import Config
 from backup import init_scheduler
 from validators import validate_item_data, ValidationError
+from rate_limiter import create_limiter, RATE_LIMITS
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -30,6 +31,9 @@ app.logger.setLevel(logging.INFO)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 db.init_app(app)
+
+# Initialize rate limiter
+limiter = create_limiter(app)
 
 # Log startup information
 app.logger.info("🚀 Gimmie app starting up...")
@@ -80,6 +84,8 @@ def ensure_db_connection():
 # Authentication removed - direct access to app
 
 @app.route('/api/items', methods=['GET', 'POST'])
+@limiter.limit(RATE_LIMITS['get_items'], methods=['GET'])
+@limiter.limit(RATE_LIMITS['create_item'], methods=['POST'])
 @db_retry()
 def handle_items():
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -125,6 +131,8 @@ def handle_items():
         return jsonify(new_item.to_dict()), 201
 
 @app.route('/api/items/<int:item_id>', methods=['PUT', 'DELETE'])
+@limiter.limit(RATE_LIMITS['update_item'], methods=['PUT'])
+@limiter.limit(RATE_LIMITS['delete_item'], methods=['DELETE'])
 @db_retry()
 def handle_item(item_id):
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -193,6 +201,7 @@ def handle_item(item_id):
         return '', 204
 
 @app.route('/api/items/<int:item_id>/complete', methods=['POST'])
+@limiter.limit(RATE_LIMITS['complete_item'])
 @db_retry()
 def complete_item(item_id):
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -228,6 +237,7 @@ def complete_item(item_id):
     return '', 204
 
 @app.route('/api/items/<int:item_id>/move', methods=['POST'])
+@limiter.limit(RATE_LIMITS['move_item'])
 @db_retry()
 def move_item(item_id):
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -258,6 +268,7 @@ def move_item(item_id):
     return jsonify(item.to_dict())
 
 @app.route('/api/export', methods=['GET'])
+@limiter.limit(RATE_LIMITS['export_data'])
 @db_retry()
 def export_data():
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -277,6 +288,7 @@ def export_data():
     return response
 
 @app.route('/api/import', methods=['POST'])
+@limiter.limit(RATE_LIMITS['import_data'])
 @db_retry()
 def import_data():
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -326,6 +338,7 @@ def import_data():
         return jsonify({'error': str(e)}), 400
 
 @app.route('/api/archive', methods=['GET'])
+@limiter.limit(RATE_LIMITS['get_archive'])
 @db_retry()
 def get_archive():
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -336,6 +349,7 @@ def get_archive():
     return jsonify([item.to_dict() for item in archived_items])
 
 @app.route('/api/archive/<int:archive_id>/restore', methods=['POST'])
+@limiter.limit(RATE_LIMITS['restore_item'])
 @db_retry()
 def restore_item(archive_id):
     client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
@@ -373,6 +387,34 @@ def manifest():
 @app.route('/service-worker.js')
 def service_worker():
     return app.send_static_file('service-worker.js')
+
+@app.route('/health', methods=['GET'])
+@limiter.limit(RATE_LIMITS['health_check'])
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Check database connection
+        db.session.execute(db.text('SELECT 1'))
+        db_status = 'healthy'
+    except Exception:
+        db_status = 'unhealthy'
+    
+    return jsonify({
+        'status': 'healthy' if db_status == 'healthy' else 'degraded',
+        'version': '1.0.6',
+        'database': db_status,
+        'timestamp': datetime.utcnow().isoformat() + 'Z'
+    })
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    """Handle rate limit exceeded errors"""
+    client_ip = request.environ.get('HTTP_X_REAL_IP', request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr))
+    app.logger.warning(f"⚠️  Rate limit exceeded for {client_ip}")
+    return jsonify({
+        'error': 'Rate limit exceeded. Please slow down your requests.',
+        'retry_after': e.description
+    }), 429
 
 @app.route('/')
 def index():
