@@ -6,6 +6,8 @@ let isLoadingItems = false;
 let isSubmittingForm = false;
 let formListenerAdded = false;
 let csrfToken = null;
+let lastSubmissionTime = 0;
+let formSubmissionCount = 0;
 
 // Enhanced logging function
 function log(level, message, data = null) {
@@ -320,9 +322,28 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-document.getElementById('add-item-btn').addEventListener('click', () => {
+// Mobile-safe button handler with debouncing
+function handleAddItemClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const now = Date.now();
+    if (now - lastSubmissionTime < 300) { // 300ms debounce
+        log('warn', '🚫 Button click ignored - too frequent');
+        return;
+    }
+    lastSubmissionTime = now;
+    
     document.getElementById('add-item-modal').classList.add('show');
     document.getElementById('item-name').focus();
+}
+
+// Add both touch and click handlers with debouncing
+const addItemBtn = document.getElementById('add-item-btn');
+addItemBtn.addEventListener('click', handleAddItemClick);
+addItemBtn.addEventListener('touchend', (e) => {
+    e.preventDefault(); // Prevent subsequent click event
+    handleAddItemClick(e);
 });
 
 // Prevent duplicate event listeners - FORCE CACHE BUST v1.0.5
@@ -332,20 +353,36 @@ if (!formListenerAdded) {
     log('info', '🎯 Adding form submit listener v1.0.5');
     document.getElementById('add-item-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    e.stopImmediatePropagation(); // Stop other handlers
     
-    log('info', '📝 Form submit event triggered');
+    const now = Date.now();
+    formSubmissionCount++;
     
-    // Prevent double submissions - check and set atomically
+    log('info', `📝 Form submit event triggered (count: ${formSubmissionCount})`);
+    
+    // Enhanced mobile protection against double submissions
     if (isSubmittingForm) {
         log('warn', '🔄 Form submission already in progress, skipping...');
-        return;
+        return false;
     }
+    
+    // Time-based protection (prevent submissions within 1 second)
+    if (now - lastSubmissionTime < 1000) {
+        log('warn', '🚫 Form submission too quick, likely duplicate - skipping');
+        return false;
+    }
+    
+    lastSubmissionTime = now;
     
     // Disable submit button immediately
     const submitButton = e.target.querySelector('button[type="submit"]');
     const originalText = submitButton.textContent;
     submitButton.disabled = true;
     submitButton.textContent = 'Saving...';
+    
+    // Disable all form inputs to prevent changes during submission
+    const formInputs = e.target.querySelectorAll('input, select, button');
+    formInputs.forEach(input => input.disabled = true);
     
     isSubmittingForm = true;
     log('info', '🔒 Form submission locked');
@@ -385,9 +422,14 @@ if (!formListenerAdded) {
         log('error', '❌ Failed to save item', error);
         showConnectionStatus(error.message || 'Failed to save item', 'error');
     } finally {
-        // Re-enable submit button
+        // Re-enable submit button and form inputs
         submitButton.disabled = false;
         submitButton.textContent = originalText;
+        
+        // Re-enable all form inputs
+        const formInputs = e.target.querySelectorAll('input, select, button');
+        formInputs.forEach(input => input.disabled = false);
+        
         isSubmittingForm = false;
         log('info', '🔓 Form submission unlocked');
     }

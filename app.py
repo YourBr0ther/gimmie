@@ -42,7 +42,7 @@ app.after_request(inject_csrf_token)
 
 # Log startup information
 app.logger.info("🚀 Gimmie app starting up...")
-app.logger.info("🏷️  Version: 1.1.1 (cache busting + security & performance)")
+app.logger.info("🏷️  Version: 1.1.2 (mobile double-tap fix + cache busting + security & performance)")
 app.logger.info(f"📊 Environment: {os.environ.get('FLASK_ENV', 'production')}")
 app.logger.info(f"🗄️  Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 app.logger.info(f"🔧 Debug mode: {app.debug}")
@@ -50,7 +50,7 @@ app.logger.info(f"🔧 Debug mode: {app.debug}")
 scheduler = None
 
 # Generate version hash for cache busting
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 VERSION_HASH = hashlib.md5(f"{VERSION}-{int(time.time())}".encode()).hexdigest()[:8]
 
 # Template context processor to inject version into templates

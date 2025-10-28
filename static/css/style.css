@@ -17,6 +17,23 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    /* Prevent mobile touch issues */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Allow text selection for inputs and content */
+input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    -khtml-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
 }
 
 body {
@@ -107,6 +124,21 @@ select:focus {
     transition: all 0.2s;
     text-decoration: none;
     -webkit-tap-highlight-color: transparent;
+    /* Prevent mobile double-tap and zoom */
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Disabled button state for form submissions */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .btn-primary {

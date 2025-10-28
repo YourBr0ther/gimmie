@@ -2,7 +2,7 @@
 set -e
 
 echo "🚀 [$(date '+%Y-%m-%d %H:%M:%S')] Starting Gimmie application..."
-echo "🏷️  [$(date '+%Y-%m-%d %H:%M:%S')] Version: 1.1.1 (cache busting + security & performance)"
+echo "🏷️  [$(date '+%Y-%m-%d %H:%M:%S')] Version: 1.1.2 (mobile double-tap fix + cache busting + security & performance)"
 echo "📁 [$(date '+%Y-%m-%d %H:%M:%S')] Creating directories..."
 mkdir -p /app/data/backups
 chmod -R 777 /app/data
