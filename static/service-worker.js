@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gimmie-v1.1.1-cache-busting';
+const CACHE_NAME = 'gimmie-v1.1.5-pwa-duplicate-fix';
 const urlsToCache = [
   '/',
   '/static/images/gimmie-icon.png',
@@ -24,7 +24,9 @@ self.addEventListener('fetch', event => {
       event.request.url.includes('/static/css/') ||
       event.request.url.includes('?v=')) {
     // Always fetch fresh for API calls, auth, versioned assets
-    return fetch(event.request);
+    // IMPORTANT: Use event.respondWith to prevent duplicate requests in PWA
+    event.respondWith(fetch(event.request));
+    return;
   }
 
   event.respondWith(

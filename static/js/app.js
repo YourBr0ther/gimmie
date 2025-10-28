@@ -24,7 +24,11 @@ function log(level, message, data = null) {
     }
 }
 
-log('info', '🚀 Gimmie frontend initialized - v1.1.1');
+// Detect PWA context
+const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+const context = isPWA ? 'PWA' : 'Browser';
+
+log('info', `🚀 Gimmie frontend initialized - v1.1.5 (${context})`);
 
 // Check for version updates and clear cache if needed
 async function checkForUpdates() {
@@ -373,7 +377,7 @@ addItemBtn.addEventListener('touchend', (e) => {
 });
 
 // Prevent duplicate event listeners - MOBILE DOUBLE SUBMISSION FIX v1.1.3
-console.log('🚀 App.js loaded - Version 1.1.3');
+console.log('🚀 App.js loaded - Version 1.1.5');
 
 // Remove any existing listeners first (mobile cleanup)
 const existingForm = document.getElementById('add-item-form');
@@ -385,7 +389,7 @@ if (existingForm) {
 
 if (!formListenerAdded) {
     formListenerAdded = true;
-    log('info', '🎯 Adding form submit listener v1.1.3');
+    log('info', '🎯 Adding form submit listener v1.1.5');
     document.getElementById('add-item-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     e.stopImmediatePropagation(); // Stop other handlers
@@ -394,7 +398,7 @@ if (!formListenerAdded) {
     const submissionId = `${now}-${Math.random().toString(36).substr(2, 9)}`;
     formSubmissionCount++;
     
-    log('info', `📝 Form submit event triggered (count: ${formSubmissionCount}, ID: ${submissionId})`);
+    log('info', `📝 Form submit event triggered (count: ${formSubmissionCount}, ID: ${submissionId}, Context: ${context})`);
     
     // ULTRA-AGGRESSIVE mobile protection against double submissions
     if (isSubmittingForm) {
@@ -403,9 +407,12 @@ if (!formListenerAdded) {
         return false;
     }
     
-    // Time-based protection (prevent submissions within 2 seconds for mobile)
-    if (now - lastSubmissionTime < 2000) {
-        log('warn', `🚫 Form submission too quick (${now - lastSubmissionTime}ms), likely duplicate - skipping`);
+    // PWA gets extra protection due to service worker issues
+    const debounceTime = isPWA ? 1000 : 500;
+    
+    // Time-based protection (prevent submissions within debounce time)
+    if (now - lastSubmissionTime < debounceTime) {
+        log('warn', `🚫 Form submission too quick (${now - lastSubmissionTime}ms < ${debounceTime}ms), likely duplicate - skipping`);
         e.stopPropagation();
         return false;
     }
@@ -446,9 +453,10 @@ if (!formListenerAdded) {
     }
     
     // Get data with fallback to direct element access (mobile backup)
+    const costValue = formData.get('cost') || document.getElementById('item-cost').value;
     const data = {
         name: formData.get('name') || document.getElementById('item-name').value,
-        cost: formData.get('cost') ? parseFloat(formData.get('cost')) : null,
+        cost: costValue && costValue.trim() !== '' ? parseFloat(costValue) : null,
         link: formData.get('link') || document.getElementById('item-link').value || null,
         type: formData.get('type') || document.getElementById('item-type').value,
         added_by: formData.get('added_by') || document.getElementById('item-added-by').value

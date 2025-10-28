@@ -3,7 +3,7 @@ import json
 import time
 import logging
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response
 from sqlalchemy.exc import OperationalError, DatabaseError
@@ -42,15 +42,46 @@ app.after_request(inject_csrf_token)
 
 # Log startup information
 app.logger.info("🚀 Gimmie app starting up...")
-app.logger.info("🏷️  Version: 1.1.4 (aggressive mobile double-submit fix + CSRF + cache busting + security)")
+app.logger.info("🏷️  Version: 1.1.8 (fixed cost field capture in forms)")
 app.logger.info(f"📊 Environment: {os.environ.get('FLASK_ENV', 'production')}")
 app.logger.info(f"🗄️  Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 app.logger.info(f"🔧 Debug mode: {app.debug}")
 
 scheduler = None
 
+# Server-side duplicate detection for PWA issues
+recent_submissions = {}
+
+def is_duplicate_submission(client_ip, data):
+    """Check if this is a duplicate submission within the last 3 seconds"""
+    now = datetime.utcnow()
+    
+    # Create a signature of the submission
+    signature = hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest()
+    key = f"{client_ip}-{signature}"
+    
+    # Clean old entries (older than 3 seconds)
+    cutoff = now - timedelta(seconds=3)
+    keys_to_remove = []
+    for k, timestamp in recent_submissions.items():
+        if timestamp < cutoff:
+            keys_to_remove.append(k)
+    
+    for k in keys_to_remove:
+        del recent_submissions[k]
+    
+    # Check if this is a duplicate
+    if key in recent_submissions:
+        time_diff = (now - recent_submissions[key]).total_seconds()
+        app.logger.warning(f"🚫 Duplicate submission detected from {client_ip}: {signature[:8]}... (time diff: {time_diff:.2f}s)")
+        return True
+    
+    # Record this submission
+    recent_submissions[key] = now
+    return False
+
 # Generate version hash for cache busting
-VERSION = "1.1.4"
+VERSION = "1.1.8"
 VERSION_HASH = hashlib.md5(f"{VERSION}-{int(time.time())}".encode()).hexdigest()[:8]
 
 # Template context processor to inject version into templates
@@ -120,6 +151,11 @@ def handle_items():
         data = request.get_json()
         app.logger.info(f"➕ POST /api/items - Creating new item from {client_ip}")
         app.logger.debug(f"📝 Item data: {data}")
+        
+        # Server-side duplicate detection (PWA failsafe)
+        if is_duplicate_submission(client_ip, data):
+            app.logger.warning(f"🚫 Blocked duplicate submission from {client_ip}")
+            return jsonify({'error': 'Duplicate submission detected. Please wait before submitting again.'}), 429
         
         try:
             # Validate and sanitize input

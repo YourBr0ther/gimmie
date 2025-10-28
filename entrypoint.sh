@@ -2,7 +2,7 @@
 set -e
 
 echo "🚀 [$(date '+%Y-%m-%d %H:%M:%S')] Starting Gimmie application..."
-echo "🏷️  [$(date '+%Y-%m-%d %H:%M:%S')] Version: 1.1.3 (mobile CSRF fix + double-tap fix + cache busting + security & performance)"
+echo "🏷️  [$(date '+%Y-%m-%d %H:%M:%S')] Version: 1.1.8 (fixed cost field capture in forms)"
 echo "📁 [$(date '+%Y-%m-%d %H:%M:%S')] Creating directories..."
 mkdir -p /app/data/backups
 chmod -R 777 /app/data
@@ -31,4 +31,4 @@ with app.app_context():
 fi
 
 echo "🌐 [$(date '+%Y-%m-%d %H:%M:%S')] Starting Gunicorn server on port 5010..."
-exec gunicorn -b 0.0.0.0:5010 --timeout 300 --workers 2 --log-level info --access-logfile - --error-logfile - app:app
+exec gunicorn -b 0.0.0.0:5010 --timeout 300 --workers 1 --log-level info --access-logfile - --error-logfile - app:app
