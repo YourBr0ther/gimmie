@@ -56,12 +56,14 @@ async function apiCall(url, options = {}) {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
+            // Don't set Content-Type for FormData - browser will set it with boundary
+            const headers = options.body instanceof FormData 
+                ? { ...options.headers }
+                : { 'Content-Type': 'application/json', ...options.headers };
+                
             const response = await fetch(url, {
                 ...options,
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options.headers
-                }
+                headers
             });
             
             if (!response.ok) {
@@ -276,21 +278,27 @@ document.getElementById('add-item-btn').addEventListener('click', () => {
     document.getElementById('item-name').focus();
 });
 
-// Prevent duplicate event listeners - FORCE CACHE BUST v1.0.4
-console.log('🚀 App.js loaded - Version 1.0.4');
+// Prevent duplicate event listeners - FORCE CACHE BUST v1.0.5
+console.log('🚀 App.js loaded - Version 1.0.5');
 if (!formListenerAdded) {
     formListenerAdded = true;
-    log('info', '🎯 Adding form submit listener v1.0.4');
+    log('info', '🎯 Adding form submit listener v1.0.5');
     document.getElementById('add-item-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     log('info', '📝 Form submit event triggered');
     
-    // Prevent double submissions
+    // Prevent double submissions - check and set atomically
     if (isSubmittingForm) {
         log('warn', '🔄 Form submission already in progress, skipping...');
         return;
     }
+    
+    // Disable submit button immediately
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    const originalText = submitButton.textContent;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Saving...';
     
     isSubmittingForm = true;
     log('info', '🔒 Form submission locked');
@@ -330,6 +338,9 @@ if (!formListenerAdded) {
         log('error', '❌ Failed to save item', error);
         showConnectionStatus(error.message || 'Failed to save item', 'error');
     } finally {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
         isSubmittingForm = false;
         log('info', '🔓 Form submission unlocked');
     }
@@ -356,8 +367,7 @@ document.getElementById('import-file').addEventListener('change', async (e) => {
     try {
         const response = await apiCall('/api/import', {
             method: 'POST',
-            body: formData,
-            headers: {} // Let browser set Content-Type for FormData
+            body: formData
         });
         
         const result = await response.json();

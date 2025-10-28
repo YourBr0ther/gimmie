@@ -11,6 +11,7 @@ from models import db, Item, Archive
 from auth import login_required, create_session, check_password
 from config import Config
 from backup import init_scheduler
+from validators import validate_item_data, ValidationError
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -32,7 +33,7 @@ db.init_app(app)
 
 # Log startup information
 app.logger.info("🚀 Gimmie app starting up...")
-app.logger.info("🏷️  Version: 1.0.5-cachebust (duplicate fix + cache busting)")
+app.logger.info("🏷️  Version: 1.0.6 (bug fixes: race condition, FormData headers, position ordering)")
 app.logger.info(f"📊 Environment: {os.environ.get('FLASK_ENV', 'production')}")
 app.logger.info(f"🗄️  Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 app.logger.info(f"🔧 Debug mode: {app.debug}")
@@ -99,29 +100,23 @@ def handle_items():
         app.logger.info(f"➕ POST /api/items - Creating new item from {client_ip}")
         app.logger.debug(f"📝 Item data: {data}")
         
-        # Input validation
-        if not data.get('name') or len(data.get('name', '')) > 255:
-            app.logger.warning(f"⚠️  Invalid item name from {client_ip}: '{data.get('name')}'")
-            return jsonify({'error': 'Name is required and must be less than 255 characters'}), 400
-        
-        if data.get('type') and data['type'] not in ['want', 'need']:
-            app.logger.warning(f"⚠️  Invalid item type from {client_ip}: '{data.get('type')}'")
-            return jsonify({'error': 'Type must be either "want" or "need"'}), 400
-        
-        if data.get('link') and len(data.get('link', '')) > 2000:
-            app.logger.warning(f"⚠️  Link too long from {client_ip}: {len(data.get('link'))} chars")
-            return jsonify({'error': 'Link must be less than 2000 characters'}), 400
-        
-        max_position = db.session.query(db.func.max(Item.position)).scalar() or 0
-        
-        new_item = Item(
-            name=data['name'][:255],
-            cost=data.get('cost'),
-            link=data.get('link'),
-            type=data.get('type', 'want'),
-            added_by=data.get('added_by', 'Unknown'),
-            position=max_position + 1
-        )
+        try:
+            # Validate and sanitize input
+            validated_data = validate_item_data(data)
+            
+            max_position = db.session.query(db.func.max(Item.position)).scalar() or 0
+            
+            new_item = Item(
+                name=validated_data['name'],
+                cost=validated_data['cost'],
+                link=validated_data['link'],
+                type=validated_data['type'],
+                added_by=validated_data['added_by'],
+                position=max_position + 1
+            )
+        except ValidationError as e:
+            app.logger.warning(f"⚠️  Validation error from {client_ip}: {str(e)}")
+            return jsonify({'error': str(e)}), 400
         
         db.session.add(new_item)
         db.session.commit()
@@ -139,13 +134,27 @@ def handle_item(item_id):
         data = request.get_json()
         app.logger.info(f"✏️  PUT /api/items/{item_id} - Updating item '{item.name}' from {client_ip}")
         
-        old_name = item.name
-        item.name = data.get('name', item.name)
-        item.cost = data.get('cost', item.cost)
-        item.link = data.get('link', item.link)
-        item.type = data.get('type', item.type)
-        
-        db.session.commit()
+        try:
+            # Validate and sanitize input
+            validated_data = validate_item_data({
+                'name': data.get('name', item.name),
+                'cost': data.get('cost', item.cost),
+                'link': data.get('link', item.link),
+                'type': data.get('type', item.type),
+                'added_by': data.get('added_by', item.added_by)
+            })
+            
+            old_name = item.name
+            item.name = validated_data['name']
+            item.cost = validated_data['cost']
+            item.link = validated_data['link']
+            item.type = validated_data['type']
+            item.added_by = validated_data['added_by']
+            
+            db.session.commit()
+        except ValidationError as e:
+            app.logger.warning(f"⚠️  Validation error from {client_ip}: {str(e)}")
+            return jsonify({'error': str(e)}), 400
         
         if old_name != item.name:
             app.logger.info(f"📝 Item name changed: '{old_name}' → '{item.name}'")
@@ -166,12 +175,18 @@ def handle_item(item_id):
         )
         db.session.add(archive_item)
         
-        items_below = Item.query.filter(Item.position > item.position).all()
-        app.logger.debug(f"🔄 Reordering {len(items_below)} items below position {item.position}")
-        for i in items_below:
-            i.position -= 1
+        # Get all items ordered by position
+        all_items = Item.query.order_by(Item.position).all()
+        deleted_position = item.position
         
         db.session.delete(item)
+        db.session.flush()  # Remove item but don't commit yet
+        
+        # Reorder remaining items sequentially
+        remaining_items = [i for i in all_items if i.id != item_id]
+        for idx, i in enumerate(remaining_items):
+            i.position = idx + 1
+        
         db.session.commit()
         
         app.logger.info(f"✅ Deleted and archived item '{item.name}' (was ID {item_id})")
@@ -196,12 +211,17 @@ def complete_item(item_id):
     )
     db.session.add(archive_item)
     
-    items_below = Item.query.filter(Item.position > item.position).all()
-    app.logger.debug(f"🔄 Reordering {len(items_below)} items below position {item.position}")
-    for i in items_below:
-        i.position -= 1
+    # Get all items ordered by position
+    all_items = Item.query.order_by(Item.position).all()
     
     db.session.delete(item)
+    db.session.flush()  # Remove item but don't commit yet
+    
+    # Reorder remaining items sequentially
+    remaining_items = [i for i in all_items if i.id != item_id]
+    for idx, i in enumerate(remaining_items):
+        i.position = idx + 1
+    
     db.session.commit()
     
     app.logger.info(f"🎉 Completed and archived item '{item.name}' (was ID {item_id})")
